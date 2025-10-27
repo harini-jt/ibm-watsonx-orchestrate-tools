@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, Query # <-- Added 'Query' h
 from pydantic import BaseModel, Field
 import requests
 from typing import List, Dict, Any
-
+from mangum import Mangum  # For Vercel deployment
 # --- 1. Pydantic Schemas for Data Structure ---
 
 # Schema for a single infrastructure record (the item inside the 'records' array)
@@ -22,6 +22,8 @@ app = FastAPI(
     description="Microservice for the National Infrastructure Resilience Copilot to fetch and fuse raw data.",
     version="1.0.0"
 )
+
+handler = Mangum(app)  # For vercel deployment
 
 # --- 3. Custom Dependency for API Key (FIXED to use Query) ---
 def get_ogd_api_key(
@@ -124,7 +126,8 @@ def fetch_flood_risk_data(
 
     return risk_data
 
-# Example invocation for local testing (run with: uvicorn main:app --reload)
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# # Example invocation for local testing (run with: uvicorn main:app --reload)
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run(app, host="0.0.0.0", port=8000)

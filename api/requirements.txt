@@ -3,3 +3,4 @@ requests
 pydantic
 uvicorn
 python-dotenv
+mangum
