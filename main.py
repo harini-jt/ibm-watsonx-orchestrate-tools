@@ -14,7 +14,7 @@ class InfrastructureRecord(BaseModel):
 
 app = FastAPI(title="Data Scout API Gateway")
 
-def get_ogd_api_key(api_key: str = Query(...)):
+def get_ogd_api_key(api_key: str = Query(..., alias="api-key")):
     if not api_key:
         raise HTTPException(status_code=400, detail="OGD API key is required.")
     return api_key
