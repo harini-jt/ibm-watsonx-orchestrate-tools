@@ -13,8 +13,14 @@ class InfrastructureRecord(BaseModel):
     address: str
     unique_id: str
 
-app = FastAPI(title="Data Scout API Gateway")
-
+app = FastAPI(
+    title="Data Scout API Gateway",
+    version="1.0.0",
+    servers=[
+        {"url": "https://data-gov-apis.vercel.app", "description": "Production Server"},
+        {"url": "http://127.0.0.1:8000", "description": "Local Development Server"}
+    ],
+)
 # --- 3. Load Environment Variable ---
 API_KEY = os.getenv("API_KEY") 
 if not API_KEY:
