@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 import requests
-from mangum import Mangum
+# from mangum import Mangum
 
 class InfrastructureRecord(BaseModel):
     property_id: str
@@ -51,9 +51,9 @@ def fetch_flood_risk_data(ward_numbers: str = Query(...)):
         })
     return risk_data
 
-# ✅ Explicit function for Vercel (fixes issubclass issue)
-asgi_handler = Mangum(app)
+# # ✅ Explicit function for Vercel (fixes issubclass issue)
+# asgi_handler = Mangum(app)
 
-def handler(event, context):
-    """AWS Lambda compatible handler for Vercel."""
-    return asgi_handler(event, context)
+# def handler(event, context):
+#     """AWS Lambda compatible handler for Vercel."""
+#     return asgi_handler(event, context)
