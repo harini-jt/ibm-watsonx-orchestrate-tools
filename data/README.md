@@ -2,7 +2,7 @@
 
 ### GreenOps for Automotive Manufacturing Sustainability
 
-1. Volvo-Aligned Plan Automotive manufacturing is energy-intensive
+1. Automotive manufacturing is energy-intensive
 2. You understand the domain deeply (authentic problem-solving)
 3. No NDA issues (using synthetic but realistic data)
 
