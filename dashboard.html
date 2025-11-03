@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Sustainability Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .kpi-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .kpi-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .kpi-card.blue {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .kpi-card.green {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        
+        .kpi-card.purple {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        }
+        
+        .kpi-card.orange {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .kpi-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        
+        .kpi-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .kpi-title {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+        
+        .kpi-trend {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .trend-up {
+            color: #90EE90;
+        }
+        
+        .trend-down {
+            color: #FFB6C1;
+        }
+        
+        .charts-container {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .chart-wrapper {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .alert {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .alert.warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+        }
+        
+        .alert.success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏭 Plant Sustainability Dashboard</h1>
+        <p class="subtitle" id="timestamp">Loading...</p>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading dashboard data...</p>
+        </div>
+        
+        <div id="content" style="display: none;">
+            <div id="alerts"></div>
+            <div id="kpi-cards" class="kpi-container"></div>
+            
+            <div class="charts-container">
+                <div class="chart-wrapper">
+                    <div class="chart-title">📈 Energy & CO₂ Trends (Last 24 Hours)</div>
+                    <div id="energy-trend" style="width:100%;height:400px;"></div>
+                </div>
+                
+                <div class="grid-2">
+                    <div class="chart-wrapper">
+                        <div class="chart-title">📊 Energy by Zone</div>
+                        <div id="zone-comparison" style="width:100%;height:350px;"></div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <div class="chart-title">🥧 Energy Distribution</div>
+                        <div id="zone-pie" style="width:100%;height:350px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // API base URL - update this to your deployed URL
+        const API_URL = 'http://localhost:8000';
+        
+        // Fetch dashboard data
+        async function loadDashboard() {
+            try {
+                const response = await fetch(`${API_URL}/visualizer/dashboard`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    renderDashboard(data.dashboard);
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('content').style.display = 'block';
+                } else {
+                    throw new Error('Dashboard load failed');
+                }
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `
+                    <div style="color: #dc3545;">
+                        <h3>❌ Error Loading Dashboard</h3>
+                        <p>${error.message}</p>
+                        <p style="font-size: 14px; margin-top: 16px;">
+                            Make sure your API is running at <code>${API_URL}</code>
+                        </p>
+                    </div>
+                `;
+            }
+        }
+        
+        function renderDashboard(dashboard) {
+            // Update timestamp
+            const timestamp = new Date(dashboard.timestamp);
+            document.getElementById('timestamp').textContent = 
+                `Last updated: ${timestamp.toLocaleString()}`;
+            
+            // Render alerts
+            const alertsDiv = document.getElementById('alerts');
+            dashboard.alerts.forEach(alert => {
+                alertsDiv.innerHTML += `
+                    <div class="alert ${alert.type}">
+                        <span style="font-size: 24px;">${alert.icon}</span>
+                        <span>${alert.message}</span>
+                    </div>
+                `;
+            });
+            
+            // Render KPI cards
+            const cardsDiv = document.getElementById('kpi-cards');
+            dashboard.kpi_cards.forEach(card => {
+                const trendClass = card.trend === 'up' ? 'trend-up' : 'trend-down';
+                const trendIcon = card.trend === 'up' ? '↑' : '↓';
+                
+                cardsDiv.innerHTML += `
+                    <div class="kpi-card ${card.color}">
+                        <div class="kpi-icon">${card.icon}</div>
+                        <div class="kpi-value">${card.value}</div>
+                        <div class="kpi-title">${card.title}</div>
+                        <div class="kpi-trend ${trendClass}">
+                            ${trendIcon} ${card.trend_value}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // Render charts
+            dashboard.charts.forEach(chart => {
+                if (chart.id === 'energy-trend') {
+                    Plotly.newPlot('energy-trend', 
+                        chart.config.data, 
+                        chart.config.layout,
+                        {responsive: true}
+                    );
+                }
+                if (chart.id === 'zone-comparison') {
+                    Plotly.newPlot('zone-comparison', 
+                        chart.config.data, 
+                        chart.config.layout,
+                        {responsive: true}
+                    );
+                }
+                if (chart.id === 'zone-distribution') {
+                    Plotly.newPlot('zone-pie', 
+                        chart.config.data, 
+                        chart.config.layout,
+                        {responsive: true}
+                    );
+                }
+            });
+        }
+        
+        // Load dashboard on page load
+        loadDashboard();
+        
+        // Auto-refresh every 30 seconds
+        setInterval(loadDashboard, 30000);
+    </script>
+</body>
+</html>

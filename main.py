@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from fastapi.responses import JSONResponse
 from typing import List, Dict, Any, Optional
@@ -24,6 +25,15 @@ app = FastAPI(
         {"url": "https://ibm-watsonx-orchestrate-tools.vercel.app/", "description": "Production Server"},
         {"url": "http://127.0.0.1:8000", "description": "Local Development Server"}
     ],
+)
+
+# Add CORS middleware to allow browser access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for development
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 # Configuration for GreenOps analysis
@@ -855,5 +865,179 @@ def ml_status_endpoint():
             "status": "error",
             "message": f"watsonx.ai client error: {str(e)}"
         })
+
+
+# ============================================================================
+# VISUALIZER AGENT ENDPOINTS
+# ============================================================================
+
+# Import visualizer functions
+from visualizer_agent import (
+    generate_plotly_line_chart,
+    generate_plotly_bar_chart,
+    generate_plotly_pie_chart,
+    generate_plotly_scatter,
+    generate_anomaly_heatmap,
+    generate_kpi_cards,
+    generate_dashboard_config,
+    TimeSeriesData,
+    CategoryData,
+    ScatterData
+)
+from chart_links import plotly_to_quickchart_url
+
+@app.post("/visualizer/trend-chart")
+def visualizer_trend_chart(data: TimeSeriesData, format: str = Query("json", description="Response format: 'json' or 'chat'")):
+    """
+    Generate multi-line time series chart (Plotly JSON)
+    Perfect for: Energy trends, CO2 over time, production metrics
+    
+    Format options:
+    - json: Returns Plotly config (for web apps)
+    - chat: Returns text response with chart link (for watsonx Orchestrate)
+    """
+    try:
+        chart_config = generate_plotly_line_chart(data)
+        
+        # For watsonx Orchestrate chat format
+        if format == "chat":
+            chart_url = plotly_to_quickchart_url(chart_config)
+            return JSONResponse(content={
+                "status": "success",
+                "message": f"✅ I've created your {data.title} chart!",
+                "chart_url": chart_url,
+                "text_response": f"📊 **{data.title}**\n\nView your chart here: {chart_url}\n\nThis chart shows {len(data.series)} data series over {len(data.timestamps)} time points."
+            })
+        
+        # Default: Return Plotly JSON
+        return JSONResponse(content={
+            "status": "success",
+            "chart_type": "line",
+            "config": chart_config
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chart generation failed: {str(e)}")
+
+
+@app.post("/visualizer/comparison-chart")
+def visualizer_comparison_chart(data: CategoryData):
+    """
+    Generate grouped bar chart (Plotly JSON)
+    Perfect for: Zone comparisons, shift analysis
+    """
+    try:
+        chart_config = generate_plotly_bar_chart(data)
+        return JSONResponse(content={
+            "status": "success",
+            "chart_type": "bar",
+            "config": chart_config
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chart generation failed: {str(e)}")
+
+
+@app.post("/visualizer/pie-chart")
+def visualizer_pie_chart(categories: List[str], values: List[float], title: str = "Distribution"):
+    """
+    Generate pie chart (Plotly JSON)
+    Perfect for: Energy distribution by zone, status breakdown
+    """
+    try:
+        chart_config = generate_plotly_pie_chart(categories, values, title)
+        return JSONResponse(content={
+            "status": "success",
+            "chart_type": "pie",
+            "config": chart_config
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chart generation failed: {str(e)}")
+
+
+@app.post("/visualizer/scatter-plot")
+def visualizer_scatter_plot(data: ScatterData):
+    """
+    Generate scatter plot (Plotly JSON)
+    Perfect for: Correlation analysis (energy vs production)
+    """
+    try:
+        chart_config = generate_plotly_scatter(data)
+        return JSONResponse(content={
+            "status": "success",
+            "chart_type": "scatter",
+            "config": chart_config
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chart generation failed: {str(e)}")
+
+
+@app.get("/visualizer/dashboard")
+def visualizer_dashboard(
+    zone_id: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None)
+):
+    """
+    Generate complete dashboard configuration with KPI cards and multiple charts
+    Perfect for: Full sustainability dashboard view
+    """
+    try:
+        # Filter data
+        data = df.copy()
+        if zone_id:
+            data = data[data["zone_id"] == zone_id]
+        if start_date:
+            data = data[data["timestamp"] >= pd.to_datetime(start_date)]
+        if end_date:
+            data = data[data["timestamp"] <= pd.to_datetime(end_date)]
+        
+        # Compute KPIs
+        kpis = {
+            "total_energy_kwh": float(data["energy_kwh"].sum()),
+            "total_co2_kg": float(data["co2_kg"].sum()),
+            "total_vehicles": int(data["production_units"].sum()),
+            "energy_per_vehicle_kwh": float(data["energy_kwh"].sum() / data["production_units"].sum()) if data["production_units"].sum() > 0 else 0,
+            "energy_trend": 5.2,  # Mock trend %
+            "co2_trend": -2.1,
+            "production_trend": 3.8,
+            "efficiency_trend": -1.5
+        }
+        
+        # Prepare trend data (last 24 hours)
+        recent_data = data.tail(24)
+        trend_data = {
+            "timestamps": recent_data["timestamp"].dt.strftime("%Y-%m-%d %H:%M").tolist(),
+            "series": [
+                {"name": "Energy (kWh)", "data": recent_data["energy_kwh"].tolist()},
+                {"name": "CO₂ (kg)", "data": recent_data["co2_kg"].tolist()}
+            ],
+            "title": "Energy & CO₂ Trends (Last 24 Hours)",
+            "y_axis_label": "Value"
+        }
+        
+        # Prepare zone comparison data
+        zone_energy = data.groupby("zone_id")["energy_kwh"].sum().reset_index()
+        zone_data = {
+            "categories": zone_energy["zone_id"].tolist(),
+            "series": [
+                {"name": "Energy (kWh)", "data": zone_energy["energy_kwh"].tolist()}
+            ],
+            "title": "Energy Consumption by Zone",
+            "chart_type": "bar"
+        }
+        
+        # Count anomalies (mock)
+        anomaly_count = len(detect_anomalies(data))
+        
+        # Generate dashboard
+        dashboard = generate_dashboard_config(kpis, trend_data, zone_data, anomaly_count)
+        
+        return JSONResponse(content={
+            "status": "success",
+            "dashboard": dashboard
+        })
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Dashboard generation failed: {str(e)}")
+
 
 

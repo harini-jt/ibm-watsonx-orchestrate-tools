@@ -1,0 +1,400 @@
+# Visualizer Agent - Usage Examples
+
+## How the Visualizer Agent Works
+
+The Visualizer Agent generates **Plotly JSON configurations** that can be:
+1. Rendered in web browsers using Plotly.js
+2. Displayed in Jupyter notebooks
+3. Embedded in watsonx Orchestrate responses
+4. Used by frontend frameworks (React, Vue, Angular)
+
+---
+
+## IBM Tools You Can Use
+
+### ✅ **1. Plotly.js (Recommended)**
+- **What:** JavaScript library for interactive charts
+- **Where:** Any web application, watsonx Orchestrate web UI
+- **How:** Your API returns Plotly JSON → Frontend renders it
+
+```html
+<!-- In your web frontend -->
+<div id="chart"></div>
+<script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+<script>
+  // Fetch chart config from your API
+  fetch('https://your-api.com/visualizer/trend-chart', {
+    method: 'POST',
+    body: JSON.stringify({
+      timestamps: ["2025-11-01", "2025-11-02", "2025-11-03"],
+      series: [
+        {name: "Energy", data: [100, 120, 95]}
+      ]
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    // Render the chart
+    Plotly.newPlot('chart', data.config.data, data.config.layout);
+  });
+</script>
+```
+
+### ✅ **2. IBM Watson Studio Dashboards**
+- **What:** Built-in dashboard builder in watsonx.ai
+- **Where:** Watson Studio → Dashboards
+- **How:** Import data from your API, create visualizations
+
+**Steps:**
+1. Go to Watson Studio → Create Dashboard
+2. Add Data Source → REST API → Point to your `/fetch_data` endpoint
+3. Drag & drop chart widgets
+4. Configure chart types (line, bar, pie)
+
+### ✅ **3. IBM Cognos Dashboard Embedded** (If available)
+- **What:** Professional BI dashboards
+- **Where:** IBM Cloud → Analytics → Cognos
+- **How:** Connect to your FastAPI as data source
+
+**Check availability:**
+```bash
+ibmcloud catalog service cognos-dashboard-embedded
+```
+
+### ✅ **4. watsonx Orchestrate Rich Responses**
+- **What:** Display charts directly in Orchestrate chat
+- **Where:** Agent skill configuration → Rich response templates
+- **How:** Return chart URLs or embedded HTML
+
+---
+
+## API Endpoints You Now Have
+
+### 1. **Trend Chart** (Multi-line time series)
+```bash
+POST /visualizer/trend-chart
+```
+
+**Example Request:**
+```json
+{
+  "timestamps": ["2025-11-01 08:00", "2025-11-01 09:00", "2025-11-01 10:00"],
+  "series": [
+    {
+      "name": "Energy (kWh)",
+      "data": [10500, 10600, 10400]
+    },
+    {
+      "name": "CO₂ (kg)",
+      "data": [8610, 8692, 8528]
+    }
+  ],
+  "title": "Energy & CO₂ Trends",
+  "y_axis_label": "Value"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "chart_type": "line",
+  "config": {
+    "data": [...],  // Plotly trace data
+    "layout": {...}, // Chart layout
+    "config": {...}  // Plotly config
+  }
+}
+```
+
+### 2. **Comparison Chart** (Grouped bars)
+```bash
+POST /visualizer/comparison-chart
+```
+
+**Example Request:**
+```json
+{
+  "categories": ["Paint Shop", "Body Shop", "Assembly"],
+  "series": [
+    {
+      "name": "Energy (kWh)",
+      "data": [30000, 17000, 13000]
+    },
+    {
+      "name": "CO₂ (kg)",
+      "data": [24600, 13940, 10660]
+    }
+  ],
+  "title": "Zone Comparison",
+  "chart_type": "bar"
+}
+```
+
+### 3. **Pie Chart** (Distribution)
+```bash
+POST /visualizer/pie-chart
+```
+
+**Example Request:**
+```json
+{
+  "categories": ["Paint Shop", "Casting", "Body Shop", "Assembly", "Battery", "HVAC"],
+  "values": [30, 21, 17, 13, 11, 7],
+  "title": "Energy Distribution by Zone"
+}
+```
+
+### 4. **Scatter Plot** (Correlation)
+```bash
+POST /visualizer/scatter-plot
+```
+
+**Example Request:**
+```json
+{
+  "x_values": [10500, 10600, 10400, 10550],
+  "y_values": [100, 105, 98, 103],
+  "labels": ["Hour 1", "Hour 2", "Hour 3", "Hour 4"],
+  "title": "Energy vs Production",
+  "x_label": "Energy (kWh)",
+  "y_label": "Production (units)"
+}
+```
+
+### 5. **Complete Dashboard** (All-in-one)
+```bash
+GET /visualizer/dashboard?zone_id=ZONE-PAINT-SHOP&start_date=2025-11-01
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "dashboard": {
+    "title": "Plant Sustainability Dashboard",
+    "timestamp": "2025-11-03T10:30:00",
+    "kpi_cards": [
+      {
+        "title": "Total Energy",
+        "value": "178,612 kWh",
+        "trend": "up",
+        "trend_value": "5.2%",
+        "icon": "⚡",
+        "color": "blue"
+      },
+      ...
+    ],
+    "charts": [
+      {
+        "id": "energy-trend",
+        "title": "Energy & CO₂ Trends",
+        "type": "line",
+        "width": "full",
+        "config": {...}  // Plotly config
+      },
+      ...
+    ],
+    "alerts": [
+      {
+        "type": "warning",
+        "message": "78 anomalies detected",
+        "icon": "⚠️"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## How to Use in watsonx Orchestrate
+
+### **Option A: Return Chart URLs** (Simplest)
+
+Your Visualizer skill returns text with embedded images:
+
+```
+Agent response:
+"Here's the energy trend chart: [View Chart](https://quickchart.io/chart?c={...})"
+```
+
+Use services like:
+- **QuickChart.io** - Generates chart images from JSON
+- **Chart.io** - Similar service
+- **Your own renderer** - Host a simple HTML page
+
+### **Option B: Return Interactive HTML** (Better UX)
+
+```python
+@app.get("/visualizer/chart-html")
+def get_chart_html():
+    return HTMLResponse("""
+    <html>
+      <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+      <div id="chart"></div>
+      <script>
+        var data = [...];
+        var layout = {...};
+        Plotly.newPlot('chart', data, layout);
+      </script>
+    </html>
+    """)
+```
+
+### **Option C: JSON for Frontend** (Most Flexible)
+
+1. Your Visualizer API returns Plotly JSON
+2. Frontend (React/Vue app) fetches it
+3. Renders using Plotly.js React component
+
+```javascript
+import Plot from 'react-plotly.js';
+
+function Dashboard() {
+  const [chartData, setChartData] = useState(null);
+  
+  useEffect(() => {
+    fetch('/visualizer/dashboard')
+      .then(r => r.json())
+      .then(data => setChartData(data.dashboard));
+  }, []);
+  
+  return (
+    <div>
+      {chartData?.charts.map(chart => (
+        <Plot
+          data={chart.config.data}
+          layout={chart.config.layout}
+        />
+      ))}
+    </div>
+  );
+}
+```
+
+---
+
+## Testing Your Visualizer Agent
+
+### Test locally:
+```bash
+# Start your API
+uvicorn main:app --reload
+
+# Test trend chart
+curl -X POST http://localhost:8000/visualizer/trend-chart \
+  -H "Content-Type: application/json" \
+  -d '{
+    "timestamps": ["2025-11-01", "2025-11-02"],
+    "series": [{"name": "Energy", "data": [100, 120]}],
+    "title": "Test Chart"
+  }'
+
+# Test dashboard
+curl http://localhost:8000/visualizer/dashboard
+```
+
+### View in browser:
+1. Open http://localhost:8000/docs
+2. Try the `/visualizer/trend-chart` endpoint
+3. Copy the response JSON
+4. Paste into https://plotly.com/chart-studio/ to preview
+
+---
+
+## For Your Hackathon Demo
+
+**Recommended Approach:**
+1. ✅ Use your FastAPI backend (already done!)
+2. ✅ Create simple HTML frontend with Plotly.js
+3. ✅ watsonx Orchestrate calls your API
+4. ✅ Display charts in web interface
+
+**5-Minute Demo Flow:**
+1. User asks PlantOPS: "Show me energy trends"
+2. PlantOPS → DataScout.fetch_data
+3. PlantOPS → Visualizer.trend_chart
+4. PlantOPS returns: "Here's your chart" + embedded visualization
+5. 🎉 Interactive chart appears!
+
+---
+
+## Quick Frontend Example
+
+Save this as `dashboard.html`:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .kpi-card { display: inline-block; padding: 20px; margin: 10px; 
+                background: #f5f5f5; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>🏭 Plant Sustainability Dashboard</h1>
+  
+  <div id="kpi-cards"></div>
+  <div id="energy-trend" style="width:100%;height:400px;"></div>
+  <div id="zone-comparison" style="width:50%;height:400px;display:inline-block;"></div>
+  <div id="zone-pie" style="width:50%;height:400px;display:inline-block;"></div>
+  
+  <script>
+    // Fetch dashboard data
+    fetch('http://localhost:8000/visualizer/dashboard')
+      .then(r => r.json())
+      .then(response => {
+        const dashboard = response.dashboard;
+        
+        // Render KPI cards
+        const cardsDiv = document.getElementById('kpi-cards');
+        dashboard.kpi_cards.forEach(card => {
+          cardsDiv.innerHTML += `
+            <div class="kpi-card">
+              <div style="font-size:40px;">${card.icon}</div>
+              <div style="font-size:24px;font-weight:bold;">${card.value}</div>
+              <div>${card.title}</div>
+              <div style="color:${card.trend === 'up' ? 'green' : 'red'}">
+                ${card.trend === 'up' ? '↑' : '↓'} ${card.trend_value}
+              </div>
+            </div>
+          `;
+        });
+        
+        // Render charts
+        dashboard.charts.forEach(chart => {
+          if (chart.id === 'energy-trend') {
+            Plotly.newPlot('energy-trend', chart.config.data, chart.config.layout);
+          }
+          if (chart.id === 'zone-comparison') {
+            Plotly.newPlot('zone-comparison', chart.config.data, chart.config.layout);
+          }
+          if (chart.id === 'zone-distribution') {
+            Plotly.newPlot('zone-pie', chart.config.data, chart.config.layout);
+          }
+        });
+      });
+  </script>
+</body>
+</html>
+```
+
+Open `dashboard.html` in your browser → Instant dashboard! 🎉
+
+---
+
+## Summary
+
+**You DON'T need special IBM tools!** Your FastAPI + Plotly approach works perfectly:
+
+✅ FastAPI endpoints return Plotly JSON  
+✅ Frontend (HTML/React/watsonx UI) renders it  
+✅ Works everywhere - web, mobile, Orchestrate  
+✅ No external dependencies beyond Plotly.js  
+✅ Perfect for hackathon demo  
+
+Your Visualizer Agent is now **production-ready**! 🚀
