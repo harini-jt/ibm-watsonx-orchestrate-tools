@@ -7,7 +7,7 @@ import pandas as pd
 import requests
 import os
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Try to import watsonx.ai client (optional for ML features)
 try:
@@ -1112,6 +1112,277 @@ def visualizer_dashboard(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Dashboard generation failed: {str(e)}")
+
+
+# ============================================================================
+# ACTION AGENT (REMEDY AGENT) ENDPOINTS
+# ============================================================================
+
+# Import action agent functions
+from action_agent import (
+    generate_remediation_plan,
+    format_slack_message,
+    format_chat_response,
+    calculate_financial_impact,
+    get_top_priorities,
+    ANOMALY_CONFIGS
+)
+
+# Pydantic models for Action Agent
+class AnomalyInput(BaseModel):
+    type: str = Field(..., description="Anomaly type (e.g., PAINT_OVEN_IDLE)")
+    zone: str = Field(..., description="Zone ID where anomaly detected")
+    energy_waste_kwh: float = Field(..., description="Energy waste in kWh per hour")
+    severity: str = Field(default="MEDIUM", description="Severity: HIGH, MEDIUM, or LOW")
+    timestamp: Optional[str] = Field(default=None, description="Detection timestamp")
+    note: Optional[str] = Field(default=None, description="Additional notes")
+
+class WorkOrderQuery(BaseModel):
+    work_order_id: str = Field(..., description="Work order ID to query")
+
+
+@app.post("/actions/create-remediation")
+def create_remediation(
+    anomaly: AnomalyInput,
+    format: str = Query("json", description="Response format: 'json' or 'chat'"),
+    send_slack: bool = Query(False, description="Include Slack message in response")
+):
+    """
+    Create remediation plan for detected anomaly
+    Generates work order, calculates impact, and provides action steps
+    
+    Format options:
+    - json: Returns full remediation plan
+    - chat: Returns chat-friendly text (for watsonx Orchestrate)
+    """
+    try:
+        # Generate remediation plan
+        plan = generate_remediation_plan(anomaly.dict())
+        
+        # For watsonx Orchestrate chat format
+        if format == "chat":
+            chat_text = format_chat_response(plan)
+            slack_msg = format_slack_message(plan) if send_slack else None
+            
+            return JSONResponse(content={
+                "status": "success",
+                "work_order_id": plan["work_order_id"],
+                "priority": plan["priority"]["level"],
+                "message": chat_text,
+                "slack_message": slack_msg,
+                "slack_notification_status": "ready_to_send" if send_slack else "not_requested",
+                "annual_savings": plan["expected_outcome"]["cost_savings_year"]
+            })
+        
+        # Default: Return full JSON plan
+        if send_slack:
+            plan["slack_message"] = format_slack_message(plan)
+        
+        return JSONResponse(content={
+            "status": "success",
+            "remediation_plan": plan
+        })
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Remediation planning failed: {str(e)}")
+
+
+@app.get("/actions/work-order/{work_order_id}")
+def get_work_order_status(work_order_id: str):
+    """
+    Get status of a work order
+    In production, this would query a database
+    """
+    try:
+        # Mock response (in production, query database)
+        return JSONResponse(content={
+            "status": "success",
+            "work_order": {
+                "work_order_id": work_order_id,
+                "status": "IN_PROGRESS",
+                "created_at": datetime.now().isoformat(),
+                "assigned_to": "Maintenance Team",
+                "progress": "60%",
+                "estimated_completion": (datetime.now() + timedelta(hours=1)).isoformat(),
+                "updates": [
+                    {
+                        "timestamp": datetime.now().isoformat(),
+                        "update": "Work order created and assigned",
+                        "by": "Action Agent"
+                    },
+                    {
+                        "timestamp": (datetime.now() + timedelta(minutes=15)).isoformat(),
+                        "update": "Technician dispatched to location",
+                        "by": "Maintenance Supervisor"
+                    },
+                    {
+                        "timestamp": (datetime.now() + timedelta(minutes=30)).isoformat(),
+                        "update": "Investigation in progress",
+                        "by": "Technician"
+                    }
+                ]
+            }
+        })
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Work order not found: {str(e)}")
+
+
+@app.get("/actions/priorities")
+def get_action_priorities(
+    zone_id: Optional[str] = Query(None, description="Filter by zone"),
+    limit: int = Query(5, description="Number of top priorities to return"),
+    format: str = Query("json", description="Response format: 'json' or 'chat'")
+):
+    """
+    Get top priority actions based on detected anomalies
+    Ranks by financial impact and severity
+    """
+    try:
+        # Get anomalies from detection
+        data = df.copy()
+        if zone_id:
+            data = data[data["zone_id"] == zone_id]
+        
+        # Detect anomalies
+        anomalies = detect_anomalies(data)
+        
+        # Get top priorities
+        top_priorities = get_top_priorities(anomalies, limit)
+        
+        # For chat format
+        if format == "chat":
+            if not top_priorities:
+                return JSONResponse(content={
+                    "status": "success",
+                    "message": "✅ Great news! No critical anomalies detected.",
+                    "priorities_count": 0
+                })
+            
+            message = f"🎯 **Top {len(top_priorities)} Priority Actions**\n\n"
+            for i, item in enumerate(top_priorities, 1):
+                anomaly = item["anomaly"]
+                message += f"{i}. **{anomaly['type'].replace('_', ' ').title()}** ({item['priority_level']})\n"
+                message += f"   Zone: {anomaly['zone']}\n"
+                message += f"   Potential Savings: ${item['annual_savings']:,.0f}/year\n"
+                message += f"   {item['urgency']}\n\n"
+            
+            return JSONResponse(content={
+                "status": "success",
+                "message": message,
+                "priorities_count": len(top_priorities),
+                "total_annual_savings": sum(p["annual_savings"] for p in top_priorities)
+            })
+        
+        # Default: JSON format
+        return JSONResponse(content={
+            "status": "success",
+            "priorities": top_priorities,
+            "count": len(top_priorities),
+            "total_potential_savings": sum(p["annual_savings"] for p in top_priorities)
+        })
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Priority analysis failed: {str(e)}")
+
+
+@app.post("/actions/estimate-impact")
+def estimate_impact(
+    energy_waste_kwh: float = Query(..., description="Energy waste in kWh/hour"),
+    duration_days: int = Query(365, description="Duration to calculate (default: 1 year)"),
+    format: str = Query("json", description="Response format: 'json' or 'chat'")
+):
+    """
+    Estimate financial impact of energy waste
+    Calculates cost per hour, day, month, year
+    """
+    try:
+        # Calculate impact
+        impact = calculate_financial_impact(energy_waste_kwh)
+        impact["duration_days"] = duration_days
+        impact["total_cost"] = round(impact["cost_per_day"] * duration_days, 2)
+        
+        # For chat format
+        if format == "chat":
+            message = f"""💰 **Financial Impact Estimation**
+
+**Energy Waste:** {energy_waste_kwh:.1f} kWh/hour
+
+**Cost Breakdown:**
+• Per hour: ${impact['cost_per_hour']:.2f}
+• Per day: ${impact['cost_per_day']:.2f}
+• Per month: ${impact['cost_per_month']:.2f}
+• Per year: ${impact['cost_per_year']:,.2f}
+
+**Over {duration_days} days:** ${impact['total_cost']:,.2f}
+
+💡 Fixing this issue could save ${impact['potential_annual_savings']:,.2f} annually!
+"""
+            return JSONResponse(content={
+                "status": "success",
+                "message": message,
+                "impact": impact
+            })
+        
+        # Default: JSON
+        return JSONResponse(content={
+            "status": "success",
+            "impact": impact
+        })
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Impact estimation failed: {str(e)}")
+
+
+@app.get("/actions/anomaly-types")
+def get_anomaly_types():
+    """
+    Get list of supported anomaly types and their configurations
+    Useful for understanding what the Action Agent can handle
+    """
+    return JSONResponse(content={
+        "status": "success",
+        "supported_anomaly_types": list(ANOMALY_CONFIGS.keys()),
+        "configurations": ANOMALY_CONFIGS
+    })
+
+
+@app.get("/actions/slack-preview")
+def preview_slack_message(
+    anomaly_type: str = Query(..., description="Anomaly type"),
+    zone: str = Query(..., description="Zone ID"),
+    energy_waste_kwh: float = Query(..., description="Energy waste in kWh/hour")
+):
+    """
+    Preview what Slack notification would look like
+    Useful for testing without actually sending to Slack
+    """
+    try:
+        # Create mock anomaly
+        anomaly_data = {
+            "type": anomaly_type,
+            "zone": zone,
+            "energy_waste_kwh": energy_waste_kwh,
+            "severity": "HIGH",
+            "timestamp": datetime.now().isoformat(),
+            "note": f"Mock anomaly for preview"
+        }
+        
+        # Generate plan
+        plan = generate_remediation_plan(anomaly_data)
+        
+        # Format Slack message
+        slack_message = format_slack_message(plan)
+        
+        return JSONResponse(content={
+            "status": "success",
+            "slack_message": slack_message,
+            "work_order_id": plan["work_order_id"],
+            "note": "This is a preview - no actual Slack notification sent"
+        })
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Preview generation failed: {str(e)}")
+
 
 
 
