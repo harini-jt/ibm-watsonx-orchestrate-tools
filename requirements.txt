@@ -5,3 +5,5 @@ uvicorn
 python-dotenv
 pandas
 numpy
+ibm-watsonx-ai
+scikit-learn

@@ -8,9 +8,18 @@ import os
 import numpy as np
 from datetime import datetime
 
+# Try to import watsonx.ai client (optional for ML features)
+try:
+    from wml_client import get_wml_client
+    WML_AVAILABLE = True
+except Exception as e:
+    WML_AVAILABLE = False
+    print(f"⚠️ watsonx.ai integration not available: {e}")
+
 app = FastAPI(
-    title="Data Scout API Gateway",
-    version="1.0.0",
+    title="Data Scout API Gateway with AI",
+    version="2.0.0",
+    description="Automotive plant sustainability APIs with watsonx.ai ML models",
     servers=[
         {"url": "https://data-gov-apis.vercel.app", "description": "Production Server"},
         {"url": "http://127.0.0.1:8000", "description": "Local Development Server"}
@@ -391,11 +400,11 @@ def generate_report(kpis, anomalies, actions):
 
 @app.get("/fetch_data")
 def fetch_data(
-    zone_id: str | None = Query(None, description="Filter by zone (e.g. ZONE-PAINT-SHOP)"),
-    shift: str | None = Query(None, description="Filter by shift (e.g. SHIFT-A, SHIFT-B, SHIFT-C)"),
-    start_date: str | None = Query(None, description="Start timestamp (YYYY-MM-DD)"),
-    end_date: str | None = Query(None, description="End timestamp (YYYY-MM-DD)"),
-    status: str | None = Query(None, description="Filter by status (OPERATIONAL/STANDBY)")
+    zone_id: Optional[str] = Query(None, description="Filter by zone (e.g. ZONE-PAINT-SHOP)"),
+    shift: Optional[str] = Query(None, description="Filter by shift (e.g. SHIFT-A, SHIFT-B, SHIFT-C)"),
+    start_date: Optional[str] = Query(None, description="Start timestamp (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End timestamp (YYYY-MM-DD)"),
+    status: Optional[str] = Query(None, description="Filter by status (OPERATIONAL/STANDBY)")
 ):
     data = df.copy()
 
@@ -419,11 +428,11 @@ def fetch_data(
 
 @app.get("/compute-kpis", response_model=KPIModel)
 def compute_kpis_endpoint(
-    zone_id: str | None = Query(None, description="Filter by zone (e.g. ZONE-PAINT-SHOP)"),
-    shift: str | None = Query(None, description="Filter by shift (e.g. SHIFT-A, SHIFT-B, SHIFT-C)"),
-    start_date: str | None = Query(None, description="Start timestamp (YYYY-MM-DD)"),
-    end_date: str | None = Query(None, description="End timestamp (YYYY-MM-DD)"),
-    status: str | None = Query(None, description="Filter by status (OPERATIONAL/STANDBY)")
+    zone_id: Optional[str] = Query(None, description="Filter by zone (e.g. ZONE-PAINT-SHOP)"),
+    shift: Optional[str] = Query(None, description="Filter by shift (e.g. SHIFT-A, SHIFT-B, SHIFT-C)"),
+    start_date: Optional[str] = Query(None, description="Start timestamp (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End timestamp (YYYY-MM-DD)"),
+    status: Optional[str] = Query(None, description="Filter by status (OPERATIONAL/STANDBY)")
 ):
     """Compute KPIs (Key Performance Indicators) for energy efficiency and production metrics."""
     try:
@@ -458,11 +467,11 @@ def compute_kpis_endpoint(
 
 @app.get("/detect-anomalies")
 def detect_anomalies_endpoint(
-    zone_id: str | None = Query(None, description="Filter by zone (e.g. ZONE-PAINT-SHOP)"),
-    shift: str | None = Query(None, description="Filter by shift (e.g. SHIFT-A, SHIFT-B, SHIFT-C)"),
-    start_date: str | None = Query(None, description="Start timestamp (YYYY-MM-DD)"),
-    end_date: str | None = Query(None, description="End timestamp (YYYY-MM-DD)"),
-    status: str | None = Query(None, description="Filter by status (OPERATIONAL/STANDBY)")
+    zone_id: Optional[str] = Query(None, description="Filter by zone (e.g. ZONE-PAINT-SHOP)"),
+    shift: Optional[str] = Query(None, description="Filter by shift (e.g. SHIFT-A, SHIFT-B, SHIFT-C)"),
+    start_date: Optional[str] = Query(None, description="Start timestamp (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End timestamp (YYYY-MM-DD)"),
+    status: Optional[str] = Query(None, description="Filter by status (OPERATIONAL/STANDBY)")
 ):
     """Detect anomalies and inefficiencies in plant operations."""
     try:
@@ -500,11 +509,11 @@ def detect_anomalies_endpoint(
 
 @app.get("/plan-actions")
 def plan_actions_endpoint(
-    zone_id: str | None = Query(None, description="Filter by zone (e.g. ZONE-PAINT-SHOP)"),
-    shift: str | None = Query(None, description="Filter by shift (e.g. SHIFT-A, SHIFT-B, SHIFT-C)"),
-    start_date: str | None = Query(None, description="Start timestamp (YYYY-MM-DD)"),
-    end_date: str | None = Query(None, description="End timestamp (YYYY-MM-DD)"),
-    status: str | None = Query(None, description="Filter by status (OPERATIONAL/STANDBY)")
+    zone_id: Optional[str] = Query(None, description="Filter by zone (e.g. ZONE-PAINT-SHOP)"),
+    shift: Optional[str] = Query(None, description="Filter by shift (e.g. SHIFT-A, SHIFT-B, SHIFT-C)"),
+    start_date: Optional[str] = Query(None, description="Start timestamp (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End timestamp (YYYY-MM-DD)"),
+    status: Optional[str] = Query(None, description="Filter by status (OPERATIONAL/STANDBY)")
 ):
     """Generate actionable recommendations based on detected anomalies."""
     try:
@@ -546,11 +555,11 @@ def plan_actions_endpoint(
 @app.get("/generate-report")
 def generate_report_endpoint(
     format_type: str = Query("json", description="Response format: 'json' or 'text'"),
-    zone_id: str | None = Query(None, description="Filter by zone (e.g. ZONE-PAINT-SHOP)"),
-    shift: str | None = Query(None, description="Filter by shift (e.g. SHIFT-A, SHIFT-B, SHIFT-C)"),
-    start_date: str | None = Query(None, description="Start timestamp (YYYY-MM-DD)"),
-    end_date: str | None = Query(None, description="End timestamp (YYYY-MM-DD)"),
-    status: str | None = Query(None, description="Filter by status (OPERATIONAL/STANDBY)")
+    zone_id: Optional[str] = Query(None, description="Filter by zone (e.g. ZONE-PAINT-SHOP)"),
+    shift: Optional[str] = Query(None, description="Filter by shift (e.g. SHIFT-A, SHIFT-B, SHIFT-C)"),
+    start_date: Optional[str] = Query(None, description="Start timestamp (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End timestamp (YYYY-MM-DD)"),
+    status: Optional[str] = Query(None, description="Filter by status (OPERATIONAL/STANDBY)")
 ):
     """Generate a comprehensive sustainability report."""
     try:
@@ -591,11 +600,11 @@ def generate_report_endpoint(
 
 @app.get("/run-pipeline", response_model=ReportModel)
 def run_pipeline_endpoint(
-    zone_id: str | None = Query(None, description="Filter by zone (e.g. ZONE-PAINT-SHOP)"),
-    shift: str | None = Query(None, description="Filter by shift (e.g. SHIFT-A, SHIFT-B, SHIFT-C)"),
-    start_date: str | None = Query(None, description="Start timestamp (YYYY-MM-DD)"),
-    end_date: str | None = Query(None, description="End timestamp (YYYY-MM-DD)"),
-    status: str | None = Query(None, description="Filter by status (OPERATIONAL/STANDBY)")
+    zone_id: Optional[str] = Query(None, description="Filter by zone (e.g. ZONE-PAINT-SHOP)"),
+    shift: Optional[str] = Query(None, description="Filter by shift (e.g. SHIFT-A, SHIFT-B, SHIFT-C)"),
+    start_date: Optional[str] = Query(None, description="Start timestamp (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End timestamp (YYYY-MM-DD)"),
+    status: Optional[str] = Query(None, description="Filter by status (OPERATIONAL/STANDBY)")
 ):
     """Run the complete GreenOps pipeline: analyze data, detect anomalies, plan actions, and generate report."""
     try:
@@ -646,4 +655,205 @@ def update_config(config_update: ConfigModel):
         return ConfigModel(**CONFIG)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating configuration: {str(e)}")
+
+
+# ========================================
+# ML-POWERED ENDPOINTS (watsonx.ai)
+# ========================================
+
+@app.get("/ml-detect-anomalies")
+def ml_detect_anomalies_endpoint(
+    zone_id: Optional[str] = Query(None, description="Filter by zone"),
+    shift: Optional[str] = Query(None, description="Filter by shift"),
+    start_date: Optional[str] = Query(None, description="Start timestamp (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End timestamp (YYYY-MM-DD)"),
+    threshold: float = Query(0.5, description="Anomaly score threshold (0-1)")
+):
+    """
+    🤖 ML-POWERED: Detect anomalies using watsonx.ai Isolation Forest model.
+    Returns anomalies with confidence scores.
+    """
+    if not WML_AVAILABLE:
+        raise HTTPException(
+            status_code=503, 
+            detail="watsonx.ai integration not configured. Set credentials in .env file."
+        )
+    
+    try:
+        # Apply filters
+        data = df.copy()
+        if zone_id:
+            data = data[data["zone_id"] == zone_id]
+        if shift:
+            data = data[data["shift"] == shift]
+        if start_date:
+            data = data[data["timestamp"] >= pd.to_datetime(start_date)]
+        if end_date:
+            data = data[data["timestamp"] <= pd.to_datetime(end_date)]
+        
+        if len(data) == 0:
+            raise HTTPException(status_code=404, detail="No data found")
+        
+        # Get ML predictions
+        wml_client = get_wml_client()
+        predictions = wml_client.predict_anomalies(data)
+        
+        # Filter by threshold
+        anomalies = [p for p in predictions if p['anomaly_score'] >= threshold]
+        
+        return JSONResponse(content={
+            "count": len(anomalies),
+            "total_samples": len(predictions),
+            "anomaly_rate": round(len(anomalies) / len(predictions) * 100, 2),
+            "threshold": threshold,
+            "model_type": "watsonx.ai Isolation Forest",
+            "anomalies": anomalies
+        })
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ML anomaly detection failed: {str(e)}")
+
+
+@app.get("/predict-energy")
+def predict_energy_endpoint(
+    hours_ahead: int = Query(24, ge=1, le=168, description="Hours to forecast (1-168)"),
+    zone_id: Optional[str] = Query(None, description="Zone to forecast (omit for plant-level)")
+):
+    """
+    🤖 ML-POWERED: Forecast energy consumption using watsonx.ai XGBoost model.
+    Predicts next 1-168 hours of energy usage.
+    """
+    if not WML_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="watsonx.ai integration not configured"
+        )
+    
+    try:
+        data = df.copy()
+        if zone_id:
+            data = data[data["zone_id"] == zone_id]
+        
+        # Get forecasts
+        wml_client = get_wml_client()
+        forecasts = wml_client.predict_energy(data, hours_ahead=hours_ahead)
+        
+        # Calculate summary stats
+        total_predicted = sum([f['predicted_energy_kwh'] for f in forecasts])
+        avg_per_hour = total_predicted / hours_ahead
+        
+        return JSONResponse(content={
+            "zone": zone_id or "PLANT-LEVEL",
+            "hours_ahead": hours_ahead,
+            "total_predicted_kwh": round(total_predicted, 2),
+            "average_per_hour_kwh": round(avg_per_hour, 2),
+            "model_type": "watsonx.ai XGBoost",
+            "forecasts": forecasts
+        })
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Energy forecasting failed: {str(e)}")
+
+
+@app.get("/compare-detectors")
+def compare_detectors_endpoint(
+    zone_id: Optional[str] = Query(None, description="Filter by zone"),
+    shift: Optional[str] = Query(None, description="Filter by shift")
+):
+    """
+    📊 Compare rule-based vs ML-based anomaly detection.
+    Shows differences between traditional and AI approaches.
+    """
+    if not WML_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="watsonx.ai integration not configured"
+        )
+    
+    try:
+        # Apply filters
+        data = df.copy()
+        if zone_id:
+            data = data[data["zone_id"] == zone_id]
+        if shift:
+            data = data[data["shift"] == shift]
+        
+        if len(data) == 0:
+            raise HTTPException(status_code=404, detail="No data found")
+        
+        # Rule-based detection
+        data = validate_and_clean_data(data)
+        rule_anomalies = detect_anomalies(data)
+        rule_count = len(rule_anomalies)
+        
+        # ML-based detection
+        wml_client = get_wml_client()
+        ml_predictions = wml_client.predict_anomalies(data)
+        ml_anomalies = [p for p in ml_predictions if p['is_anomaly']]
+        ml_count = len(ml_anomalies)
+        
+        # Analysis
+        total_samples = len(data)
+        
+        return JSONResponse(content={
+            "total_samples": total_samples,
+            "comparison": {
+                "rule_based": {
+                    "anomalies_detected": rule_count,
+                    "detection_rate": round(rule_count / total_samples * 100, 2),
+                    "types": list(set([a['type'] for a in rule_anomalies])),
+                    "method": "Threshold-based rules"
+                },
+                "ml_based": {
+                    "anomalies_detected": ml_count,
+                    "detection_rate": round(ml_count / total_samples * 100, 2),
+                    "model": "watsonx.ai Isolation Forest",
+                    "method": "Statistical outlier detection"
+                }
+            },
+            "insights": {
+                "agreement": "Both methods agree on major anomalies" if abs(rule_count - ml_count) < 10 else "Methods show different sensitivities",
+                "recommendation": "ML model catches subtle patterns; Rules catch known issues"
+            },
+            "rule_anomalies": rule_anomalies[:10],  # First 10
+            "ml_anomalies": ml_anomalies[:10]  # First 10
+        })
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Comparison failed: {str(e)}")
+
+
+@app.get("/ml-status")
+def ml_status_endpoint():
+    """
+    ℹ️ Check watsonx.ai integration status and model information.
+    """
+    if not WML_AVAILABLE:
+        return JSONResponse(content={
+            "status": "not_configured",
+            "message": "watsonx.ai integration not available. Install dependencies and set credentials.",
+            "required_env_vars": [
+                "WATSONX_API_KEY",
+                "WATSONX_PROJECT_ID",
+                "ANOMALY_DEPLOYMENT_ID",
+                "FORECAST_DEPLOYMENT_ID"
+            ]
+        })
+    
+    try:
+        wml_client = get_wml_client()
+        model_info = wml_client.get_model_info()
+        
+        return JSONResponse(content={
+            "status": "configured",
+            "message": "watsonx.ai integration active",
+            "models": model_info
+        })
+        
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"watsonx.ai client error: {str(e)}"
+        })
+
 
