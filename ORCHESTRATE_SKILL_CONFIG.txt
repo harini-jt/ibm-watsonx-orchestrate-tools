@@ -1,0 +1,238 @@
+# watsonx Orchestrate Configuration Guide
+# How to Configure Visualizer Agent Skills
+
+## IMPORTANT: Use format=chat for Orchestrate!
+
+When adding skills to watsonx Orchestrate, always add `?format=chat` to the URL
+to get chat-friendly responses instead of raw JSON.
+
+---
+
+## Skill 1: Generate Pie Chart
+
+### API Configuration:
+- **Method:** POST
+- **URL:** `https://your-api.com/visualizer/pie-chart?format=chat`
+- **Content-Type:** application/json
+
+### Input Parameters:
+```json
+{
+  "categories": ["SHIFT-A", "SHIFT-B", "SHIFT-C"],
+  "values": [40, 30, 30],
+  "title": "Energy Consumption in Paint Shop"
+}
+```
+
+### What User Will See in Chat:
+```
+✅ I've created your Energy Consumption in Paint Shop pie chart!
+
+📊 Energy Consumption in Paint Shop
+
+• SHIFT-A: 40 (40.0%)
+• SHIFT-B: 30 (30.0%)
+• SHIFT-C: 30 (30.0%)
+
+🔗 View interactive chart: [clickable link]
+```
+
+### Response Field to Display:
+Configure Orchestrate to show: `text_response`
+
+---
+
+## Skill 2: Generate Trend Chart
+
+### API Configuration:
+- **Method:** POST
+- **URL:** `https://your-api.com/visualizer/trend-chart?format=chat`
+- **Content-Type:** application/json
+
+### Input Parameters:
+```json
+{
+  "timestamps": ["2025-11-01 08:00", "2025-11-01 09:00", "2025-11-01 10:00"],
+  "series": [
+    {
+      "name": "Energy (kWh)",
+      "data": [10500, 10600, 10400]
+    }
+  ],
+  "title": "Energy Trends",
+  "y_axis_label": "kWh"
+}
+```
+
+### What User Will See:
+```
+✅ I've created your Energy Trends chart!
+
+📊 Energy Trends
+
+View your chart here: [clickable link]
+
+This chart shows 1 data series over 3 time points.
+```
+
+---
+
+## Skill 3: Generate Comparison Chart
+
+### API Configuration:
+- **Method:** POST
+- **URL:** `https://your-api.com/visualizer/comparison-chart?format=chat`
+- **Content-Type:** application/json
+
+### Input Parameters:
+```json
+{
+  "categories": ["Paint Shop", "Body Shop", "Assembly"],
+  "series": [
+    {
+      "name": "Energy (kWh)",
+      "data": [30000, 17000, 13000]
+    }
+  ],
+  "title": "Energy by Zone",
+  "chart_type": "bar"
+}
+```
+
+### What User Will See:
+```
+✅ I've created your Energy by Zone comparison chart!
+
+📊 Energy by Zone
+
+Comparing Energy (kWh) across 3 categories.
+
+🔗 View interactive chart: [clickable link]
+```
+
+---
+
+## Skill 4: Generate Scatter Plot
+
+### API Configuration:
+- **Method:** POST
+- **URL:** `https://your-api.com/visualizer/scatter-plot?format=chat`
+- **Content-Type:** application/json
+
+### Input Parameters:
+```json
+{
+  "x_values": [10500, 10600, 10400],
+  "y_values": [100, 105, 98],
+  "title": "Energy vs Production",
+  "x_label": "Energy (kWh)",
+  "y_label": "Production (units)"
+}
+```
+
+### What User Will See:
+```
+✅ I've created your Energy vs Production scatter plot!
+
+📊 Energy vs Production
+
+Analyzing correlation between Energy (kWh) and Production (units) with 3 data points.
+
+🔗 View interactive chart: [clickable link]
+```
+
+---
+
+## Skill 5: Generate Dashboard
+
+### API Configuration:
+- **Method:** GET
+- **URL:** `https://your-api.com/visualizer/dashboard`
+- **Query Parameters:**
+  - zone_id (optional): "ZONE-PAINT-SHOP"
+  - start_date (optional): "2025-11-01"
+  - end_date (optional): "2025-11-03"
+
+### What User Will See:
+```
+🎯 Plant Sustainability Dashboard
+
+⚡ Total Energy: 178,612 kWh (↑ 5.2%)
+🌍 CO₂ Emissions: 146,421 kg (↓ 2.1%)
+🚗 Production: 149 units (↑ 3.8%)
+📊 Efficiency: 1,199 kWh/unit (↓ 1.5%)
+
+⚠️ Alerts: 78 anomalies detected
+
+📈 View Full Dashboard: [clickable link]
+```
+
+---
+
+## Orchestrate Skill Response Configuration
+
+For EACH skill, configure the response template:
+
+### Response Mapping:
+1. **Primary Response:** `text_response` field
+2. **Secondary Fields (optional):**
+   - `message` - Success message
+   - `chart_url` - Clickable link
+   - `summary` - Additional data
+
+### Example Response Template in Orchestrate:
+```
+{text_response}
+
+💡 Tip: Click the link above to interact with your chart - zoom, pan, and explore!
+```
+
+---
+
+## Testing Your Configuration
+
+### Test 1: Pie Chart
+**User says:** "Create a pie chart for energy consumption"
+**Expected response:** Formatted text with percentages + clickable link
+
+### Test 2: Trend Chart
+**User says:** "Show me energy trends"
+**Expected response:** Chart description + clickable link
+
+### Test 3: Dashboard
+**User says:** "Generate a dashboard"
+**Expected response:** KPI cards + multiple chart links
+
+---
+
+## Troubleshooting
+
+### Problem: Still seeing JSON in chat
+**Solution:** Make sure URL has `?format=chat` parameter
+
+### Problem: Chart link doesn't work
+**Solution:** Check that QuickChart.io is accessible (not blocked by firewall)
+
+### Problem: Response too long
+**Solution:** Orchestrate truncates long responses. Use `message` field instead of `text_response`
+
+---
+
+## Quick Summary Table
+
+| Endpoint | URL Suffix | Format Parameter | Response Type |
+|----------|-----------|------------------|---------------|
+| Pie Chart | `/visualizer/pie-chart` | `?format=chat` | Text + Breakdown + Link |
+| Trend Chart | `/visualizer/trend-chart` | `?format=chat` | Text + Summary + Link |
+| Comparison | `/visualizer/comparison-chart` | `?format=chat` | Text + Description + Link |
+| Scatter | `/visualizer/scatter-plot` | `?format=chat` | Text + Analysis + Link |
+| Dashboard | `/visualizer/dashboard` | Not needed (GET) | KPIs + Multiple Links |
+
+---
+
+## CRITICAL: Always Use format=chat for Orchestrate!
+
+❌ **Wrong:** `POST /visualizer/pie-chart`
+✅ **Correct:** `POST /visualizer/pie-chart?format=chat`
+
+This ensures Orchestrate displays user-friendly text instead of raw JSON! 🎯

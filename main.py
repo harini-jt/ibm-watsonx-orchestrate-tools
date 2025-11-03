@@ -920,13 +920,34 @@ def visualizer_trend_chart(data: TimeSeriesData, format: str = Query("json", des
 
 
 @app.post("/visualizer/comparison-chart")
-def visualizer_comparison_chart(data: CategoryData):
+def visualizer_comparison_chart(data: CategoryData, format: str = Query("json", description="Response format: 'json' or 'chat'")):
     """
     Generate grouped bar chart (Plotly JSON)
     Perfect for: Zone comparisons, shift analysis
+    
+    Format options:
+    - json: Returns Plotly config (for web apps)
+    - chat: Returns text response with chart link (for watsonx Orchestrate)
     """
     try:
         chart_config = generate_plotly_bar_chart(data)
+        
+        # For watsonx Orchestrate chat format
+        if format == "chat":
+            chart_url = plotly_to_quickchart_url(chart_config)
+            
+            # Build text summary
+            series_names = [s.get("name", "Series") for s in data.series]
+            summary_text = f"Comparing {', '.join(series_names)} across {len(data.categories)} categories."
+            
+            return JSONResponse(content={
+                "status": "success",
+                "message": f"✅ I've created your {data.title} comparison chart!",
+                "chart_url": chart_url,
+                "text_response": f"📊 **{data.title}**\n\n{summary_text}\n\n🔗 View interactive chart: {chart_url}"
+            })
+        
+        # Default: Return Plotly JSON
         return JSONResponse(content={
             "status": "success",
             "chart_type": "bar",
@@ -937,13 +958,49 @@ def visualizer_comparison_chart(data: CategoryData):
 
 
 @app.post("/visualizer/pie-chart")
-def visualizer_pie_chart(categories: List[str], values: List[float], title: str = "Distribution"):
+def visualizer_pie_chart(
+    categories: List[str], 
+    values: List[float], 
+    title: str = "Distribution",
+    format: str = Query("json", description="Response format: 'json' or 'chat'")
+):
     """
     Generate pie chart (Plotly JSON)
     Perfect for: Energy distribution by zone, status breakdown
+    
+    Format options:
+    - json: Returns Plotly config (for web apps)
+    - chat: Returns text response with chart link (for watsonx Orchestrate)
     """
     try:
         chart_config = generate_plotly_pie_chart(categories, values, title)
+        
+        # For watsonx Orchestrate chat format
+        if format == "chat":
+            chart_url = plotly_to_quickchart_url(chart_config)
+            
+            # Calculate percentages for text summary
+            total = sum(values)
+            percentages = [(cat, val, (val/total)*100) for cat, val in zip(categories, values)]
+            percentages.sort(key=lambda x: x[1], reverse=True)  # Sort by value
+            
+            # Build text breakdown
+            breakdown = "\n".join([f"• {cat}: {val:,.0f} ({pct:.1f}%)" for cat, val, pct in percentages])
+            
+            return JSONResponse(content={
+                "status": "success",
+                "message": f"✅ I've created your {title} pie chart!",
+                "chart_url": chart_url,
+                "text_response": f"📊 **{title}**\n\n{breakdown}\n\n🔗 View interactive chart: {chart_url}",
+                "summary": {
+                    "total": total,
+                    "categories": len(categories),
+                    "top_category": percentages[0][0],
+                    "top_percentage": f"{percentages[0][2]:.1f}%"
+                }
+            })
+        
+        # Default: Return Plotly JSON
         return JSONResponse(content={
             "status": "success",
             "chart_type": "pie",
@@ -954,13 +1011,30 @@ def visualizer_pie_chart(categories: List[str], values: List[float], title: str 
 
 
 @app.post("/visualizer/scatter-plot")
-def visualizer_scatter_plot(data: ScatterData):
+def visualizer_scatter_plot(data: ScatterData, format: str = Query("json", description="Response format: 'json' or 'chat'")):
     """
     Generate scatter plot (Plotly JSON)
     Perfect for: Correlation analysis (energy vs production)
+    
+    Format options:
+    - json: Returns Plotly config (for web apps)
+    - chat: Returns text response with chart link (for watsonx Orchestrate)
     """
     try:
         chart_config = generate_plotly_scatter(data)
+        
+        # For watsonx Orchestrate chat format
+        if format == "chat":
+            chart_url = plotly_to_quickchart_url(chart_config)
+            
+            return JSONResponse(content={
+                "status": "success",
+                "message": f"✅ I've created your {data.title} scatter plot!",
+                "chart_url": chart_url,
+                "text_response": f"📊 **{data.title}**\n\nAnalyzing correlation between {data.x_label} and {data.y_label} with {len(data.x_values)} data points.\n\n🔗 View interactive chart: {chart_url}"
+            })
+        
+        # Default: Return Plotly JSON
         return JSONResponse(content={
             "status": "success",
             "chart_type": "scatter",
