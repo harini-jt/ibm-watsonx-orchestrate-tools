@@ -7,6 +7,5 @@ __pycache__/
 *.pyc
 .DS_Store
 .env
-*.csv
 test_watsonx_integration.py
 prepare_ml_data.py

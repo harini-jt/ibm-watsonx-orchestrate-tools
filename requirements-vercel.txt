@@ -1,0 +1,6 @@
+fastapi==0.104.1
+pydantic==2.5.0
+requests==2.31.0
+python-dotenv==1.0.0
+# Lightweight alternatives
+polars==0.19.0  # Much lighter than pandas (10MB vs 150MB)

@@ -1,0 +1,18 @@
+# Render.com deployment config
+services:
+  - type: web
+    name: data-gov-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: WATSONX_API_KEY
+        sync: false
+      - key: WATSONX_PROJECT_ID
+        sync: false
+      - key: WATSONX_SPACE_ID
+        sync: false
+      - key: ANOMALY_DEPLOYMENT_ID
+        sync: false
+      - key: FORECAST_DEPLOYMENT_ID
+        sync: false
