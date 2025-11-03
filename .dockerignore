@@ -1,0 +1,13 @@
+.git
+.gitignore
+venv/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+notebooks/
+data/ml_training/
+*.ipynb
+test_watsonx_integration.py
+prepare_ml_data.py
+README.md
