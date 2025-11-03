@@ -21,7 +21,7 @@ app = FastAPI(
     version="2.0.0",
     description="Automotive plant sustainability APIs with watsonx.ai ML models",
     servers=[
-        {"url": "https://data-gov-apis.vercel.app", "description": "Production Server"},
+        {"url": "https://ibm-watsonx-orchestrate-tools.vercel.app/", "description": "Production Server"},
         {"url": "http://127.0.0.1:8000", "description": "Local Development Server"}
     ],
 )
