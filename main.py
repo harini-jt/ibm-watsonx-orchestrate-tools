@@ -17,7 +17,7 @@ except Exception as e:
     print(f"⚠️ watsonx.ai integration not available: {e}")
 
 app = FastAPI(
-    title="Data Scout API Gateway with AI",
+    title=" Automotive Plant Sustainability APIs",
     version="2.0.0",
     description="Automotive plant sustainability APIs with watsonx.ai ML models",
     servers=[
